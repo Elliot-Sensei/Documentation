@@ -24,7 +24,7 @@ N/A
 
 Web Resource : Navigate to Power Apps ➡️ Solutions ➡️ **Sensei Base** ➡️ Web Resources ➡️ **Hide Choice Options.js** `Altus.HideChoice`
 
-Form Registration : Navigate to Power Apps ➡️ Solutions ➡️ **Sensei Base** ➡️ Tables ➡️ **TBC** ➡️ Forms ➡️ **TBC** ➡️ Events
+Form Registration : Navigate to Power Apps ➡️ Solutions ➡️ **Sensei Base** ➡️ Tables ➡️ **Change Request** ➡️ Forms ➡️ **Main - Altus** ➡️ Events
 
 Config Setting : Navigate to Power Apps ➡️ Tables ➡️ **Sensei Config Settings** (`se_senseiconfigsettings`) ➡️ record where `se_logicalname` = `HideChoiceConfig`
 
@@ -77,7 +77,7 @@ The web resource also exposes `Altus.HideChoice.OnLoad`, `Altus.HideChoice.HideC
 
 | Entity | Form | Event | Handler | Pass execution context |
 | --- | --- | --- | --- | --- |
-| TBC | TBC | OnLoad | `Altus.HideChoice` (or `Altus.HideChoice.OnLoad`) | Yes |
+| Change Request | Main - Altus | OnLoad | `Altus.HideChoice` (or `Altus.HideChoice.OnLoad`) | Yes |
 
 No `OnChange` registration is required in the form designer — the library wires its own `OnChange` handler on `statuscode` in code during `OnLoad`, so hidden options are re-applied whenever the record's status changes.
 
