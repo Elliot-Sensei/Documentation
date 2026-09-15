@@ -1,47 +1,107 @@
-[[*TOC*]]
+[[_TOC_]]
 
 # Overview / Summary
 
-`Hide Choice Options.js` is a form script for model-driven apps that hides (removes) specific options from a Choice (Option Set) field on a form, for both the main form control and the header control, based on configuration stored in a Sensei Config Setting record rather than hard-coded logic.
+**Hide Choice Options** is a client-side web resource (`Hide Choice Options.js`) that removes specific options from a Choice (Option Set) column on a Dynamics 365 form — for both the main form control and the header control — without any hard-coded per-field logic. It is fully configuration-driven: at form load it reads the **Hide Choice Config** config setting (`HideChoiceConfig`), finds the rules that apply to the current entity, and removes the configured options from the matching column control(s).
 
-The script reads a JSON configuration (`HideChoiceConfig`) from the `se_senseiconfigsettings` table, matches the current entity/table, and applies one or more rules that remove the configured options from the target Choice field's control(s). Rules can match by option **value** (numeric) or option **label** (text), and can be scoped to the field's body control, header control, or both. Currently selected values are never removed, so a record that already has a "hidden" option selected will still display it correctly.
-
-For background on the design and intended usage, see:
-
-- [Hide Choice Fields - Overview](https://dev.azure.com/SenseiCloud/SA%20Water/_wiki/wikis/SA-Water.wiki/13437/Hide-Choice-Fields)
-- [Change Requests - Overview](https://dev.azure.com/SenseiCloud/SA%20Water/_wiki/wikis/SA-Water.wiki/12210/Change-Requests)
+Because the rules live in configuration, hiding an additional option (or a whole new column) requires only a config change — no edit to this web resource and no per-column form-designer changes.
 
 # Backlog Item/s
 
-- #TBC
+- #31158
+- #33792
 
 # Related Item/s
 
-The above backlog items are related to the following item/s
-
-- N/A
+- [Hide Choice Fields - Overview](https://dev.azure.com/SenseiCloud/SA%20Water/_wiki/wikis/SA-Water.wiki/13437/Hide-Choice-Fields) — config setting that supplies this web resource's rules
+- [Change Requests - Overview](https://dev.azure.com/SenseiCloud/SA%20Water/_wiki/wikis/SA-Water.wiki/12210/Change-Requests)
 
 # Links
 
-- [Hide Choice Fields - Overview](https://dev.azure.com/SenseiCloud/SA%20Water/_wiki/wikis/SA-Water.wiki/13437/Hide-Choice-Fields)
-- [Change Requests - Overview](https://dev.azure.com/SenseiCloud/SA%20Water/_wiki/wikis/SA-Water.wiki/12210/Change-Requests)
+N/A
 
 # Navigating to the Changes
 
-TBC
+Web Resource : Navigate to Power Apps ➡️ Solutions ➡️ **Sensei Base** ➡️ Web Resources ➡️ **Hide Choice Options.js** `Altus.HideChoice`
+
+Form Registration : Navigate to Power Apps ➡️ Solutions ➡️ **Sensei Base** ➡️ Tables ➡️ **TBC** ➡️ Forms ➡️ **TBC** ➡️ Events
+
+Config Setting : Navigate to Power Apps ➡️ Tables ➡️ **Sensei Config Settings** (`se_senseiconfigsettings`) ➡️ record where `se_logicalname` = `HideChoiceConfig`
+
+# Mermaid Diagram
+
+```mermaid
+flowchart TD
+  subgraph OnLoad
+    L1["Form OnLoad"]
+    L1 --> L2["Load config HideChoiceConfig from se_senseiconfigsettings"]
+    L2 --> L3["Find entitiesTable entry matching current entity"]
+    L3 --> L4["Apply each choiceColumns rule to the form"]
+    L4 --> L5["Wire statuscode OnChange to reapply rules"]
+  end
+  subgraph ApplyRule
+    A1["applyRule(rule)"]
+    A1 --> A2("hideOption is false")
+    A2 -->|Yes| A9["Skip rule"]
+    A2 -->|No| A3["Resolve target column, matchMode, applyTo"]
+    A3 --> A4["Get body / header control(s)"]
+    A4 --> A5("matchMode")
+    A5 -->|value| A6["Remove options by numeric value"]
+    A5 -->|label| A7["Remove options whose text matches"]
+    A6 --> A8["safeRemoveOption"]
+    A7 --> A8
+  end
+  subgraph safeRemoveOption
+    S1["safeRemoveOption(control, optionValue)"]
+    S1 --> S2["Resolve bound attribute and current value"]
+    S2 --> S3("Current value matches optionValue")
+    S3 -->|Yes| S4["Skip - keep option so selected value still displays"]
+    S3 -->|No| S5["control.removeOption(optionValue)"]
+  end
+  L4 -.-> A1
+```
 
 # Changes Implemented
 
-## Form Changes
+## Web Resource
 
-The `Altus.HideChoice` script is registered as an `OnLoad` event handler on the form(s) that need choice options hidden. On load, it:
+| Property | Value |
+| --- | --- |
+| **Display Name / File** | Hide Choice Options.js |
+| **Module** | `Altus.HideChoice` |
+| **Type** | Script (JScript) |
 
-1. Reads the `HideChoiceConfig` setting from `se_senseiconfigsettings` (via `se_value`, filtered by `se_logicalname`).
-2. Parses the JSON config and finds the entry under `entitiesTable` matching the current table (entity) logical name.
-3. Iterates the `choiceColumns` rules for that entity and applies each one to the form.
-4. Re-wires itself to reapply the rules whenever the `statuscode` field changes (e.g. after a status transition), so options stay hidden/visible correctly as the record changes state.
+The web resource also exposes `Altus.HideChoice.OnLoad`, `Altus.HideChoice.HideChoice` (aliases for the same entry point, kept for backwards compatibility) and `Altus.HideChoice.setConfigSettingName(name)` (overrides the config setting name to read, default `HideChoiceConfig`).
 
-### Configuration Structure (`HideChoiceConfig`)
+## Form Registration
+
+| Entity | Form | Event | Handler | Pass execution context |
+| --- | --- | --- | --- | --- |
+| TBC | TBC | OnLoad | `Altus.HideChoice` (or `Altus.HideChoice.OnLoad`) | Yes |
+
+No `OnChange` registration is required in the form designer — the library wires its own `OnChange` handler on `statuscode` in code during `OnLoad`, so hidden options are re-applied whenever the record's status changes.
+
+## How It Works
+
+**Configuration source.** On load, the web resource reads the `HideChoiceConfig` setting from `se_senseiconfigsettings` (filtering on `se_logicalname`, selecting `se_value`), parses the JSON, and looks up the `entitiesTable` entry whose `entity` matches the current table's logical name. If no config, no entry for the entity, or no `choiceColumns` rules are found, the script exits without changing the form.
+
+**Rule resolution.** For each rule under `choiceColumns`:
+
+- **Target column** — `targetAttributeColumn.value`, falling back to `targetControl`, falling back to `statuscode`.
+- **Match mode** (`matchMode`) — `value` (default) matches options by their numeric option set value; `label` matches by the option's displayed text (case-insensitive).
+- **Apply to** (`applyTo`) — `body` targets only the main-form control, `header` targets only the header control, anything else (including omitted) targets both.
+- **Target values** (`targetValues`) — the list of option values/labels to remove; accepts plain strings/numbers or objects with a `choiceOptions` property, and blank entries are ignored.
+- A rule with `hideOption: false` is skipped entirely.
+
+**Removing options.** For each resolved control, matching options are removed via `control.removeOption(...)`. Before removing, the script resolves the control's bound attribute (via `getAttribute()`, or by deriving the attribute name from the control name as a fallback) and checks the field's **current value**. If the current value matches the option being targeted, that option is **not removed**, so a record that already has a "hidden" option selected continues to display it correctly.
+
+**Header controls.** The header control is looked up first by its conventional name (`header_<column>`); if not found, the script falls back to scanning all form controls for one whose name starts with `header_` and whose bound attribute matches the target column.
+
+**Reapplying on status change.** After the initial load, the script adds an `OnChange` handler to `statuscode` that re-runs the full config-driven apply (via a `setTimeout(0)`), so option visibility stays correct as the record's status changes.
+
+**Resilience.** Errors reading/parsing the config, or manipulating an individual control, are caught and logged to the console (prefixed `[HideChoice]`) rather than breaking form load or blocking other rules from applying.
+
+## Configuration Structure (`HideChoiceConfig`)
 
 The setting value is JSON shaped roughly like:
 
@@ -57,7 +117,7 @@ The setting value is JSON shaped roughly like:
           "hideOption": true,
           "matchMode": "value | label",
           "applyTo": "body | header | both",
-          "targetValues": [ "<option value or label>", ... ]
+          "targetValues": ["<option value or label>", "..."]
         }
       ]
     }
@@ -65,40 +125,8 @@ The setting value is JSON shaped roughly like:
 }
 ```
 
-### Rule Behaviour
-
-| Property | Description |
-| --- | --- |
-| `hideOption` | If explicitly `false`, the rule is skipped entirely. |
-| `targetAttributeColumn` / `targetControl` | The logical name of the Choice field to target. Defaults to `statuscode` if not supplied. |
-| `matchMode` | `value` (default) removes options by their numeric option set value. `label` removes options whose displayed text matches (case-insensitive). |
-| `applyTo` | `body` only affects the field on the main form. `header` only affects the header control. Anything else (including omitted) applies to both. |
-| `targetValues` | List of option values or labels to remove. Accepts plain strings/numbers or objects with a `choiceOptions` property. |
-
-### Safety Behaviour
-
-- If the field's currently selected value matches an option targeted for removal, that option is **not** removed, so the field still displays the record's existing value correctly.
-- Errors reading config, parsing JSON, or manipulating an individual control are caught and logged to the console rather than breaking form load.
-- If no configuration is found, or the current entity has no matching config, the script exits without making changes.
-
-<!-- PLACE SCREENSHOT/S HERE -->
-
-## Views
-
-- N/A - this change does not affect views.
-
-## Reporting
-
-- N/A - this change does not affect reporting.
-
-## List of New / Modified Columns
-
-| Field Name | Type | Description |
-| --- | --- | --- |
-| `se_senseiconfigsettings` (`se_logicalname` = `HideChoiceConfig`) | Config record | Stores the JSON configuration consumed by this script to determine which choice options to hide, per entity/field. |
-
 # PBI Traceability and Update Notes
 
 | PBI | Last Updated | Last Updated By | Comments |
 | --- | --- | --- | --- |
-| [#PBI No.] | 16/September/2025 | [Name] | Initial documentation of `Hide Choice Options.js` |
+| #31158, #33792 | 16/September/2025 | E Avery | Initial documentation of the Hide Choice Options web resource |
