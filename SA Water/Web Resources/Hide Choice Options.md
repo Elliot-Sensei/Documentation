@@ -32,33 +32,22 @@ Config Setting: Navigate to Power Apps ➡️ Tables ➡️ **Sensei Config Sett
 
 ```mermaid
 flowchart TD
-  subgraph OnLoad
-    L1["Form OnLoad"]
-    L1 --> L2["Load config HideChoiceConfig from se_senseiconfigsettings"]
-    L2 --> L3["Find entitiesTable entry matching current entity"]
-    L3 --> L4["Apply each choiceColumns rule to the form"]
-    L4 --> L5["Wire statuscode OnChange to reapply rules"]
-  end
-  subgraph ApplyRule
-    A1["applyRule(rule)"]
-    A1 --> A2("hideOption is false")
-    A2 -->|Yes| A9["Skip rule"]
-    A2 -->|No| A3["Resolve target column, matchMode, applyTo"]
-    A3 --> A4["Get body / header control(s)"]
-    A4 --> A5("matchMode")
-    A5 -->|value| A6["Remove options by numeric value"]
-    A5 -->|label| A7["Remove options whose text matches"]
-    A6 --> A8["safeRemoveOption"]
-    A7 --> A8
-  end
-  subgraph safeRemoveOption
-    S1["safeRemoveOption(control, optionValue)"]
-    S1 --> S2["Resolve bound attribute and current value"]
-    S2 --> S3("Current value matches optionValue")
-    S3 -->|Yes| S4["Skip and keep option so selected value still displays"]
-    S3 -->|No| S5["control.removeOption(optionValue)"]
-  end
-  L4 -.-> A1
+  A["Form OnLoad"] --> B["Load config"]
+  B --> C["Find entity rules"]
+  C --> D["Apply rule"]
+  D --> E{"hideOption false?"}
+  E -->|Yes| F["Skip rule"]
+  E -->|No| G["Resolve target"]
+  G --> H["Get controls"]
+  H --> I{"matchMode"}
+  I -->|value| J["Remove by value"]
+  I -->|label| K["Remove by label"]
+  J --> L["safeRemoveOption"]
+  K --> L
+  L --> M["Resolve current value"]
+  M --> N{"Matches target?"}
+  N -->|Yes| O["Keep option"]
+  N -->|No| P["Remove option"]
 ```
 
 # Changes Implemented
