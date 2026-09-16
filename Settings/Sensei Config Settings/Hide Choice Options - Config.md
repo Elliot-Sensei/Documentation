@@ -6,6 +6,8 @@ The **Hide Choice Options** configuration setting is the rule set that tells the
 
 The configuration is structured around `entitiesTable`, which contains one or more entity entries. Each entity entry then contains `choiceColumns`, which defines the target field and the values to hide. This design keeps the business rules outside the JavaScript code, so new columns or option values can be controlled by configuration without changing the script itself.
 
+![image.png](/.attachments/image-a2d1e3be-1d12-4590-8df9-733674a44750.png)
+
 # Backlog Item/s
 
 - #31158
@@ -106,47 +108,6 @@ Examples:
 
 - When `matchMode` is `value`, the values are numeric option set values, such as `955000000`
 - When `matchMode` is `label`, the values are visible labels, such as `Approved` or `Closed`
-
-## UI behaviour
-
-The configuration UI uses array item dialogs and a custom entity lookup experience for both the entity and target attribute.
-
-The important UI behaviours are:
-
-- `entity` uses an entity lookup widget so a table can be selected by logical name
-- `targetAttributeColumn` uses an attribute lookup filtered to the selected entity
-- `matchMode`, `applyTo`, and `hideOption` are dropdown or checkbox controls
-- `targetValues` is an array that allows multiple option values or labels to be entered for a single rule
-
-This provides a simple and consistent editing experience in the config record.
-
-# How the Script Uses the Config
-
-During form load, the JavaScript does the following:
-
-1. Reads the config record from `se_senseiconfigsettings` where `se_logicalname` equals `HideChoiceConfig`.
-2. Parses the JSON payload from `se_value`.
-3. Finds the entity entry matching the current form's table logical name.
-4. Reads each `choiceColumns` rule in that entity group.
-5. Resolves the target field using `targetAttributeColumn`, with fallback logic if needed.
-6. Uses `matchMode` to decide whether matching is done on value or label.
-7. Uses `applyTo` to decide whether to affect the body, header, or both.
-8. Removes any matching option from the control, unless the option is the current selected value.
-
-This means the configuration is the source of truth for the hidden options, while the script simply applies those rules to the form.
-
-# Example Configuration Behaviour
-
-A typical configuration for the **Change Request** entity would contain a rule for the **Category** field. In that rule:
-
-- `entity.value` equals `sensei_changerequest`
-- `targetAttributeColumn.value` equals `sensei_category`
-- `matchMode` equals `value`
-- `applyTo` equals `both`
-- `hideOption` is `true`
-- `targetValues` contains the numeric option values to remove
-
-The script then matches those numeric values against the Choice field and removes them from both the form body and the header control when the form loads. If a user already has one of those options selected, the script leaves it in place so the record does not become invalid or unreadable.
 
 # PBI Traceability and Update Notes
 
